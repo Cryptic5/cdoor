@@ -35,18 +35,17 @@
         vm_ip: "{{ vm_result.instances[0].networks[0].ip }}"
 
 
-    - name: Populate db_config.json
-      blockinfile:
-        path: "{{ playbook_dir }}/../misc/db_config.json"
-        create: yes
-        block: |
-          {
-            "host": "{{ vm_ip }}",
-            "port": "5432",
-            "database": "{{ db_name }}",
-            "user": "{{ db_user }}",
-            "password": "{{ db_password }}"
-          }
+    #- name: Populate db_config.json
+    #  blockinfile:
+    #    path: "{{ playbook_dir }}/../web/db_config.json"
+    #    create: yes
+    #    block: |
+    #      {
+    #        "host": "{{ vm_ip }}",
+    #        "database": "{{ db_name }}",
+    #        "user": "{{ db_user }}",
+    #        "password": "{{ db_password }}"
+    #      }
 
     - name: Remove old host key
       shell: ssh-keygen -R "{{ vm_ip }}"

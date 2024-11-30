@@ -32,16 +32,17 @@
       ansible.builtin.apt:
         upgrade: dist
 
-    - name: Install lynx browser
-      ansible.builtin.apt:
-        name: lynx
-        state: present
 
-    - name: Create ordinary user
-      ansible.builtin.user:
-        name: clientuser
-        state: present
-        createhome: yes
-        shell: /bin/bash
-        groups: sudo
-        append: yes
+   # - name: Install lynx browser
+   #   ansible.builtin.apt:
+   #     name: lynx
+   #     state: present
+
+   # - name: Create ordinary user
+   #   ansible.builtin.user:
+   #     name: clientuser
+   #     state: present
+   #     createhome: yes
+   #     shell: /bin/bash
+   #     groups: sudo
+   #     append: yes

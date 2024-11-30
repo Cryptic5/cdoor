@@ -9,7 +9,7 @@
   vars:
     vm_name: "client-vm"
     api_url: "https://grid5.mif.vu.lt/cloud3/RPC2"
-    ubuntu_template_id: 1418
+    ubuntu_template_id: 2274 #1418
 
     api_username: "{{ api_name_client }}"
     api_password: "{{ api_password_client }}"

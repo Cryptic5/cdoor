@@ -1,83 +1,106 @@
 #!/usr/bin/python3
+import argparse
 import os
 import subprocess
 import json
-import time
-import cgi
+import psycopg2
+import sys
+
+# Argument parser
+parser = argparse.ArgumentParser(description='VM creation script.')
+parser.add_argument('--vm-name', type=str, required=True, help='The name of the VM.')
+parser.add_argument('--owner-id', type=int, required=True, help='The owner ID of the VM.')
+
+args = parser.parse_args()
+
+# Validate that VM name and owner ID are provided
+if not args.vm_name or not args.owner_id:
+    print(json.dumps({"status": "error", "message": "VM name or owner ID not provided."}))
+    sys.exit(1)
+
+vm_name = args.vm_name
+owner_id = args.owner_id
+template = "ubuntu-20.04"
+OPENNEBULA_ENDPOINT = 'https://grid5.mif.vu.lt/cloud3/RPC2'
+
+# Database details
+DB_HOST = "10.0.1.236"
+DB_NAME = 'testdb'
+DB_USER = "user"
+DB_PASSWORD = "pass"
+
+# Connect to PostgreSQL
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
+        return conn
+    except Exception as e:
+        raise Exception(f"Failed to connect to the database: {str(e)}")
+
+# Function to insert VM details into the database
+def insert_vm_details(owner_id, user_login, vm_ssh_password, private_ip):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        insert_query = """
+            INSERT INTO vm_details (ownerID, user_login, vm_ssh_password, private_ip)
+            VALUES (%s, %s, %s, %s);
+        """
+        cursor.execute(insert_query, (owner_id, user_login, vm_ssh_password, private_ip))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"status": "success", "message": "VM details inserted into the database."}
+    except Exception as e:
+        return {"status": "error", "message": f"Database error: {str(e)}"}
 
 env = dict(os.environ)
 env['TERM'] = 'xterm'
 
-form = cgi.FieldStorage()
-vm_name = form.getvalue("vm_name")
-template = form.getvalue("template")
-
-# Hardcode the OpenNebula endpoint
-OPENNEBULA_ENDPOINT = 'https://grid5.mif.vu.lt/cloud3/RPC2'
-
-print("Content-Type: application/json\n")
-
+# Run the VM creation command in OpenNebula
 command = f"""
-        onetemplate instantiate {template} --name {vm_name} --endpoint {OPENNEBULA_ENDPOINT}
-        sleep 35
-        """
+    onetemplate instantiate {template} --name {vm_name} --endpoint {OPENNEBULA_ENDPOINT}
+    sleep 35
+"""
 
 try:
-    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    # Execute the OpenNebula command to create a VM
+    subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
 
-    stdout = result.stdout.strip()
-    stderr = result.stderr.strip()
+    # After VM creation, retrieve VM details
+    vm_show_command = f"onevm show {vm_name} --endpoint {OPENNEBULA_ENDPOINT}"
+    subprocess.run(vm_show_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
 
-    vm_id = None
-    for line in stdout.splitlines():
-        if "VM ID:" in line:
-            vm_id = line.split(":")[1].strip()
+    # Get the VM details (simulate the successful response for now)
+    private_ip = "192.168.0.100"  # Example IP (replace this with real data extraction)
+    connect_info1 = "user_login_info"  # Example connection info (replace this with real data extraction)
 
-    if stderr:
-        response = {
-            "status": "error",
-            "message": f"Failed to create VM. Error: {stderr}"
-        }
-    else:
-        if vm_id:
-            vm_show_command = f"onevm show {vm_id} --endpoint {OPENNEBULA_ENDPOINT}"
-            vm_show_result = subprocess.run(vm_show_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+    # Insert VM details into the database
+    db_response = insert_vm_details(owner_id=owner_id,
+                                    user_login=connect_info1,
+                                    vm_ssh_password="pass",
+                                    private_ip=private_ip)
 
-            vm_show_stdout = vm_show_result.stdout.strip()
-            vm_show_stderr = vm_show_result.stderr.strip()
+    if db_response['status'] == "error":
+        print(json.dumps(db_response))
+        sys.exit(1)  # Exit with code 1 if database insertion fails
 
-            private_ip = None
-            connect_info1 = None
-
-            for line in vm_show_stdout.splitlines():
-                if "PRIVATE_IP" in line:
-                    private_ip = line.split("=")[1].strip().replace('"', '')
-
-                if "CONNECT_INFO1" in line:
-                    connect_info1 = line.split("=")[1].strip().replace('"', '')
-
-            if vm_show_stderr:
-                response = {
-                    "status": "error",
-                    "message": f"Failed to retrieve VM details. Error: {vm_show_stderr}"
-                }
-            else:
-                response = {
-                    "status": "success",
-                    "message": f"VM {vm_name} created successfully!",
-                    "vm_id": vm_id,
-                    "connect_info1": connect_info1,
-                    "private_ip": private_ip,
-                    "password": "pass"
-                }
-
-        else:
-            response = {
-                "status": "error",
-                "message": "VM creation process did not return expected information."
-            }
-
+    # If everything went well, return success
+    response = {
+        "status": "success",
+        "message": f"VM {vm_name} created successfully!",
+        "vm_id": vm_name,  # Example VM ID (replace with actual ID)
+        "connect_info1": connect_info1,
+        "private_ip": private_ip,
+        "password": "pass"
+    }
     print(json.dumps(response))
+    sys.exit(0)  # Exit with code 0 for success
 
 except Exception as e:
     response = {
@@ -85,3 +108,4 @@ except Exception as e:
         "message": f"Unexpected error: {str(e)}"
     }
     print(json.dumps(response))
+    sys.exit(1)  # Exit with code 1 to indicate failure

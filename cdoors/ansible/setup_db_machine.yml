@@ -3,6 +3,10 @@
   hosts: db-vm
   become: yes
 
+  vars_files:
+
+    - "{{ playbook_dir }}/passwords.yml"
+
   tasks:
     # Ensure apt lists directory exists
     - name: Ensure apt lists directory exists
@@ -114,6 +118,14 @@
       community.postgresql.postgresql_query:
         db: "{{ db_name }}"
         query: "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{ db_user }}\""
+        login_user: postgres
+        login_password: "{{ db_password }}"
+        login_host: localhost
+
+    - name: Grant USAGE, SELECT on specific sequence to 'user'
+      community.postgresql.postgresql_query:
+        db: "{{ db_name }}"
+        query: "GRANT USAGE, SELECT ON SEQUENCE users_personid_seq TO \"{{ db_user }}\""
         login_user: postgres
         login_password: "{{ db_password }}"
         login_host: localhost
