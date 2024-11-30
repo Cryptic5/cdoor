@@ -1,0 +1,119 @@
+---
+- name: Update and configure db-vm
+  hosts: db-vm
+  become: yes
+
+  tasks:
+    # Ensure apt lists directory exists
+    - name: Ensure apt lists directory exists
+      file:
+        path: /var/lib/apt/lists
+        state: directory
+        mode: '0755'
+
+    # Update apt cache to make sure the latest package lists are available
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 86400
+
+    - name: Install PostgreSQL
+      apt:
+        name: postgresql
+        state: present
+        update_cache: yes
+
+    - name: Install Python PostgreSQL dependencies
+      apt:
+        name:
+          - python3-psycopg2
+          - libpq-dev
+        state: present
+
+    - name: Configure PostgreSQL to listen on all IPs
+      lineinfile:
+        path: /etc/postgresql/12/main/postgresql.conf
+        regexp: '^#?listen_addresses\s*=\s*.*$'
+        line: "listen_addresses = '*'"
+        state: present
+
+    - name: Allow external connections to PostgreSQL
+      lineinfile:
+        path: /etc/postgresql/12/main/pg_hba.conf
+        line: "host    all             all             0.0.0.0/0               md5"
+        state: present
+
+    - name: Configure PostgreSQL to use trust authentication
+      lineinfile:
+        path: /etc/postgresql/12/main/pg_hba.conf
+        regexp: '^local\s+all\s+postgres\s+peer$'
+        line: 'local   all             postgres                                trust'
+        state: present
+
+    - name: Configure PostgreSQL to use trust on all users
+      lineinfile:
+        path: /etc/postgresql/12/main/pg_hba.conf
+        regexp: '^local\s+all\s+all\s+peer$'
+        line: 'local   all             all                                     trust'
+        state: present
+
+    - name: Restart PostgreSQL to apply changes
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: Change PostgreSQL user password using raw module
+      shell: |
+        psql -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD 'pass';"
+
+    - name: Create PostgreSQL database
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ db_password }}"
+
+    - name: Create PostgreSQL user
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        role_attr_flags: "LOGIN"
+        state: present
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ db_password }}"
+
+    - name: Grant privileges to PostgreSQL user
+      community.postgresql.postgresql_privs:
+        db: "{{ db_name }}"
+        type: database
+        privs: "ALL"
+        roles: "{{ db_user }}"
+        state: present
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ db_password }}"
+
+    - name: Copy init.sql to the remote host
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../misc/init.sql"
+        dest: "/tmp/init.sql"
+
+    - name: Run init.sql to initialize the database
+      community.postgresql.postgresql_script:
+        db: "{{ db_name }}"
+        path: "/tmp/init.sql"
+        login_host: localhost
+        login_user: postgres
+        login_password: "{{ db_password }}"
+
+    - name: Grant all privileges on all tables in schema public to 'user'
+      community.postgresql.postgresql_query:
+        db: "{{ db_name }}"
+        query: "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{ db_user }}\""
+        login_user: postgres
+        login_password: "{{ db_password }}"
+        login_host: localhost

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VM Information</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="navbar">
+    <a href="index.html" class="logo-btn">cdoors</a>
+    <div id="nav-options" class="nav-options"></div>
+  </div>
+</header>
+
+<div class="content">
+  <h1 class="title">VM Information</h1>
+  <p>Here is the SSH login information for your VM:</p>
+  <div class="info-box">
+
+    <label for="ssh-login">SSH Login</label>
+    <input type="text" id="ssh-login" name="ssh-login" value="" readonly>
+
+    <label for="private-ip">Private IP Address</label>
+    <input type="text" id="private-ip" name="private-ip" value="" readonly>
+
+    <label for="pass">Password</label>
+    <input type="text" id="pass" name="pass" value="pass" readonly>
+  </div>
+</div>
+
+<script>
+  document.getElementById('ssh-login').value = localStorage.getItem('connect_info1');
+  document.getElementById('private-ip').value = localStorage.getItem('private_ip');
+
+
+  function updateUI() {
+    const navOptions = document.getElementById('nav-options');
+    const loggedInUser = JSON.parse(localStorage.getItem('loggedInUser'));
+
+    navOptions.innerHTML = '<a href="index.html">Home</a>';
+
+    if (loggedInUser) {
+      navOptions.innerHTML += `
+        <a href="#" onclick="logout()">Logout</a>
+      `;
+    } else {
+      navOptions.innerHTML += `
+        <a href="login.html">Log In</a>
+        <a href="register.html">Register</a>
+      `;
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('loggedInUser');
+    updateUI();
+  }
+
+  updateUI();
+</script>
+
+</body>
+</html>

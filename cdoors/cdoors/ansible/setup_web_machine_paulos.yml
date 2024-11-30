@@ -1,0 +1,110 @@
+---
+- name: Update and configure webserver-vm
+  hosts: webserver-vm
+  become: yes
+  vars:
+    apache_container_name: "apache-webserver"
+    apache_image: "httpd:2.4"
+    web_files:
+      - login.html
+      - register.html
+      - services.html
+      - style.css
+      - index.html
+      - vm_info.html
+
+  tasks:
+    - name: Ensure /var/lib/apt/lists exists
+      file:
+        path: /var/lib/apt/lists
+        state: directory
+        mode: '0755'
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        force_apt_get: yes
+
+    - name: Install Docker dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+        force_apt_get: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - python3-pip
+
+    - name: Install Docker Python library
+      pip:
+        name: docker
+        state: present
+
+    - name: Add Docker GPG key
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+      register: docker_gpg_key_result
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: present
+        force_apt_get: yes
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Pull Apache Docker image
+      docker_image:
+        name: "{{ apache_image }}"
+        source: pull
+
+    - name: Run Apache Docker container
+      docker_container:
+        name: "{{ apache_container_name }}"
+        image: "{{ apache_image }}"
+        state: started
+        ports:
+          - "80:80"
+        volumes:
+          - "/var/www/html:/usr/local/apache2/htdocs"
+
+    - name: Ensure /var/www/html exists
+      file:
+        path: /var/www/html
+        state: directory
+        mode: '0755'
+
+    - name: Deploy placeholder website files
+      copy:
+        src: "{{ playbook_dir }}/../web/{{ item }}"
+        dest: "/var/www/html/{{ item }}"
+        mode: '0644'
+      loop: "{{ web_files }}"
+
+    - name: Check if Apache container is running
+      shell: "docker ps -q -f name={{ apache_container_name }}"
+      register: container_check
+      changed_when: false
+
+    - name: Fail if Apache container is not running
+      fail:
+        msg: "Apache container {{ apache_container_name }} is not running."
+      when: container_check.stdout == ""
+
+  handlers:
+    - name: Restart Docker
+      service:
+        name: docker
+        state: restarted

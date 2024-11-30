@@ -1,0 +1,80 @@
+---
+- name: Create Web VM
+  hosts: localhost
+  become: true
+
+  vars_files:
+    - "{{ playbook_dir }}/passwords.yml"
+
+  vars:
+    vm_name: "webserver-vm"
+    api_url: "https://grid5.mif.vu.lt/cloud3/RPC2"
+    ubuntu_template_id: 1418
+
+    api_username: "{{ api_name_web }}"
+    api_password: "{{ api_password_web }}"
+    vm_root_pass: "{{ vm_root_pass }}"
+
+  tasks:
+    - name: Create {{ vm_name }}
+      community.general.one_vm:
+        api_url: "{{ api_url }}"
+        api_username: "{{ api_username }}"
+        api_password: "{{ api_password }}"
+        template_id: "{{ ubuntu_template_id }}"
+        attributes:
+          name: "{{ vm_name }}"
+          tcp_port_forwarding: "80:80 22:22"
+        disk_size: 16 GB
+        memory: 1024 MB
+        vcpu: 2
+        cpu: 1
+      register: vm_result
+
+    - name: Extract private IP of {{ vm_name }}
+      ansible.builtin.set_fact:
+        vm_ip: "{{ vm_result.instances[0].networks[0].ip }}"
+
+    - name: Remove old host key
+      shell: ssh-keygen -R "{{ vm_ip }}"
+      ignore_errors: true
+
+    - name: Generate ed25519 SSH key pair if not exists
+      ansible.builtin.openssh_keypair:
+        path: "{{ ansible_user_dir }}/.ssh/id_ed25519"
+        type: ed25519
+        force: no
+      register: ssh_key
+
+    - name: Get SSH private key path
+      ansible.builtin.set_fact:
+        ssh_key_path: "{{ ssh_key.filename }}"
+
+    - name: Start SSH agent and add key
+      shell: |
+        eval $(ssh-agent) && ssh-add {{ ssh_key_path }}
+      environment:
+        SSH_AUTH_SOCK: /tmp/ssh-agent.sock
+      args:
+        executable: /bin/bash
+
+    - name: Wait for SSH to be reachable
+      wait_for:
+        host: "{{ vm_ip }}"
+        port: 22
+        timeout: 1000
+
+    - name: Copy SSH public key to {{ vm_name }}
+      shell: |
+        sshpass -p '{{ vm_root_pass }}' ssh-copy-id -i {{ ssh_key_path }}.pub -o StrictHostKeyChecking=no {{ api_username }}@{{ vm_ip }}
+
+    - name: Write {{ vm_name }} to inventory file
+      blockinfile:
+        path: "{{ playbook_dir }}/hosts"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK {{ vm_name }}"
+        block: |
+          [webserver-vm]
+          {{ vm_ip }} ansible_user="{{ api_username }}" ansible_become_password="{{ vm_root_pass }}" ansible_ssh_private_key_file="{{ ssh_key_path }}"
+
+    - name: Refresh inventory after adding webserver-vm
+      meta: refresh_inventory

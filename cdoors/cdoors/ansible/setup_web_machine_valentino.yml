@@ -1,0 +1,118 @@
+---
+- name: Update and configure webserver-vm
+  hosts: webserver-vm
+  become: yes
+
+  vars_files:
+    - "{{ playbook_dir }}/passwords.yml"
+
+  tasks:
+    - name: Ensure /var/lib/apt/lists exists
+      file:
+        path: /var/lib/apt/lists
+        state: directory
+        mode: '0755'
+
+    - name: Ensure /var/lib/one/.one
+      file:
+        path: /var/lib/one/.one
+        state: directory
+        mode: '0755'
+
+    - name: Create or update the oneauth file with OpenNebula credentials
+      copy:
+        dest: /var/lib/one/.one/one_auth
+        content: |
+          {{ opennebula_user }}:{{ opennebula_password }}
+        mode: '0600'
+        owner: root
+        group: root
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        force_apt_get: yes
+
+    - name: Install required packages for webserver
+      apt:
+        name: "{{ item }}"
+        state: present
+        force_apt_get: yes
+        cache_valid_time: 3600
+      loop:
+        - python3-setuptools
+        - python3-pip
+        - apache2
+        - dos2unix
+
+    - name: Add OpenNebula GPG key
+      apt_key:
+        url: https://downloads.opennebula.org/repo/repo.key
+        state: present
+
+    - name: Add OpenNebula repository
+      apt_repository:
+        repo: "deb https://downloads.opennebula.org/repo/5.6/Ubuntu/18.04 stable opennebula"
+        state: present
+        filename: opennebula
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install OpenNebula tools
+      apt:
+        name: opennebula-tools
+        state: present
+
+    - name: Enable Apache CGI module
+      command: a2enmod cgid
+
+    - name: Ensure /lib/cgi-bin directory exists
+      file:
+        path: /lib/cgi-bin
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Enable Apache CGI module
+      command: a2enmod cgid
+      notify: Restart Apache
+
+    - name: Deploy VM creation CGI script
+      copy:
+        src: "{{ playbook_dir }}/../web/vm.py"
+        dest: /lib/cgi-bin/vm.py
+        mode: '0755'
+
+    - name: Reformat vm.py to unix format
+      command: dos2unix /lib/cgi-bin/vm.py
+      notify: Restart Apache
+
+    - name: Deploy website files
+      copy:
+        src: "{{ playbook_dir }}/../web/{{ item }}"
+        dest: /var/www/html/
+        mode: '0644'
+      loop:
+        - login.html
+        - register.html
+        - services.html
+        - style.css
+        - index.html
+        - vm_info.html
+
+    - name: Ensure Apache can read the oneauth file
+      file:
+        path: /var/lib/one/.one/one_auth
+        owner: root
+        group: www-data
+        mode: '0640'
+
+  handlers:
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted

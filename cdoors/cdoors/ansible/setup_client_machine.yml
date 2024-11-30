@@ -1,0 +1,47 @@
+---
+- name: Configure Client VM
+  hosts: client-vm
+  become: yes
+  tasks:
+
+    - name: Ensure /var/lib/apt/lists exists
+      file:
+        path: /var/lib/apt/lists
+        state: directory
+        mode: '0755'
+
+    - name: Ensure base packages are installed
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Enable universe repository
+      ansible.builtin.shell: |
+        add-apt-repository universe
+        apt-get update
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 86400
+
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        upgrade: dist
+
+    - name: Install lynx browser
+      ansible.builtin.apt:
+        name: lynx
+        state: present
+
+    - name: Create ordinary user
+      ansible.builtin.user:
+        name: clientuser
+        state: present
+        createhome: yes
+        shell: /bin/bash
+        groups: sudo
+        append: yes
