@@ -84,7 +84,7 @@
         - vm_info.php
         - db_config.json
         - vm.py
-        -
+
     - name: Remove default index.html
       file:
         path: /var/www/html/index.html
