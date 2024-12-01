@@ -12,11 +12,27 @@ if (!isset($_SESSION['loggedInUser'])) {
 // Get the logged-in user's information
 $loggedInUser = $_SESSION['loggedInUser'];
 
-// Connect to the database to retrieve VM details
-$DB_HOST = "10.0.1.236";
-$DB_NAME = "testdb";
-$DB_USER = "user";
-$DB_PASSWORD = "pass";
+function loadDbConfig() {
+    $configFile = 'db_config.json';  // Path to your db_config.json file
+    if (file_exists($configFile)) {
+        $configContent = file_get_contents($configFile);
+        return json_decode($configContent, true);
+    } else {
+        return null;
+    }
+}
+
+// Get DB connection settings from db_config.json
+$dbConfig = loadDbConfig();
+if ($dbConfig) {
+    $DB_HOST = $dbConfig['host'];  // Private IP of the DB server
+    $DB_NAME = $dbConfig['database'];
+    $DB_USER = $dbConfig['user'];
+    $DB_PASSWORD = $dbConfig['password'];
+} else {
+    die('Error: Unable to load database configuration.');
+}
+
 
 function get_db_connection() {
     global $DB_HOST, $DB_NAME, $DB_USER, $DB_PASSWORD;

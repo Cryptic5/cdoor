@@ -1,7 +1,0 @@
-{
-  "host": "0000.6124.421.4.421",
-  "port": "5432",
-  "database": "user",
-  "user": "userName",
-  "password": "Root"
-}

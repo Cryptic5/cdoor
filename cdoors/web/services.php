@@ -13,11 +13,26 @@ $loggedInUser = $_SESSION['loggedInUser'];
 // Initialize response variables
 $responseMessage = "";
 
-// Database connection settings
-$DB_HOST = '10.0.1.236';  // Replace with your DB host IP
-$DB_NAME = 'testdb';
-$DB_USER = 'user';
-$DB_PASSWORD = 'pass';
+function loadDbConfig() {
+    $configFile = 'db_config.json';  // Path to your db_config.json file
+    if (file_exists($configFile)) {
+        $configContent = file_get_contents($configFile);
+        return json_decode($configContent, true);
+    } else {
+        return null;
+    }
+}
+
+// Get DB connection settings from db_config.json
+$dbConfig = loadDbConfig();
+if ($dbConfig) {
+    $DB_HOST = $dbConfig['host'];  // Private IP of the DB server
+    $DB_NAME = $dbConfig['database'];
+    $DB_USER = $dbConfig['user'];
+    $DB_PASSWORD = $dbConfig['password'];
+} else {
+    die('Error: Unable to load database configuration.');
+}
 
 // Function to get database connection
 function getDbConnection() {
@@ -63,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vm-name'])) {
             $responseMessage = "Failed to retrieve owner ID.";
         } else {
             // Build the command to call the Python script
-            $command = "sudo -u www-data python3 /usr/lib/cgi-bin/vm.py --vm-name " . escapeshellarg($vmName) . " --owner-id " . escapeshellarg($ownerId);
+            $command = "sudo -u www-data python3 /var/www/html/vm.py --vm-name " . escapeshellarg($vmName) . " --owner-id " . escapeshellarg($ownerId);
 
             // Execute the Python script and capture both output and exit status
             $output = shell_exec($command . " 2>&1");

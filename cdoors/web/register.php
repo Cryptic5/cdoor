@@ -6,11 +6,28 @@ session_start();
 $Fname = $Lname = $dob = $username = $password = $confirm_password = $email = '';
 $errorMessage = '';
 
-// Database connection settings
-$DB_HOST = '10.0.1.236';  // Replace with the private IP of the database VM
-$DB_NAME = 'testdb';
-$DB_USER = 'user';
-$DB_PASSWORD = 'pass';
+
+function loadDbConfig() {
+    $configFile = 'db_config.json';  // Path to your db_config.json file
+    if (file_exists($configFile)) {
+        $configContent = file_get_contents($configFile);
+        return json_decode($configContent, true);
+    } else {
+        return null;
+    }
+}
+
+// Get DB connection settings from db_config.json
+$dbConfig = loadDbConfig();
+if ($dbConfig) {
+    $DB_HOST = $dbConfig['host'];  // Private IP of the DB server
+    $DB_NAME = $dbConfig['database'];
+    $DB_USER = $dbConfig['user'];
+    $DB_PASSWORD = $dbConfig['password'];
+} else {
+    die('Error: Unable to load database configuration.');
+}
+
 
 // Connect to PostgreSQL database
 function getDbConnection() {

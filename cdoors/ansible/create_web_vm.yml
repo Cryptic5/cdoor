@@ -24,7 +24,7 @@
         template_id: "{{ ubuntu_template_id }}"
         attributes:
           name: "{{ vm_name }}"
-          tcp_port_forwarding: "80:80 22:22"
+          tcp_port_forwarding: "80:80"
         disk_size: 16 GB
         memory: 1024 MB
         vcpu: 2
@@ -53,10 +53,6 @@
     - name: Start SSH agent and add key
       shell: |
         eval $(ssh-agent) && ssh-add {{ ssh_key_path }}
-      environment:
-        SSH_AUTH_SOCK: /tmp/ssh-agent.sock
-      args:
-        executable: /bin/bash
 
     - name: Wait for SSH to be reachable
       wait_for:
@@ -71,6 +67,7 @@
     - name: Write {{ vm_name }} to inventory file
       blockinfile:
         path: "{{ playbook_dir }}/hosts"
+        create: yes
         marker: "# {mark} ANSIBLE MANAGED BLOCK {{ vm_name }}"
         block: |
           [webserver-vm]
@@ -78,3 +75,27 @@
 
     - name: Refresh inventory after adding webserver-vm
       meta: refresh_inventory
+
+
+    - name: Retrieve updated information for {{ vm_name }}
+      community.general.one_vm:
+        api_url: "{{ api_url }}"
+        api_username: "{{ api_username }}"
+        api_password: "{{ api_password }}"
+        instance_ids: "{{ vm_result.instances[0].vm_id }}"
+      register: vm_updated_info
+
+    - name: Extract private IP, public IP, and public port mapped to 80
+      ansible.builtin.set_fact:
+        vm_private_ip: "{{ vm_updated_info.instances[0].attributes.PRIVATE_IP }}"
+        vm_public_ip: "{{ vm_updated_info.instances[0].attributes.PUBLIC_IP }}"
+        vm_public_port_80: "{{ vm_updated_info.instances[0].attributes.TCP_PORT_FORWARDING }}"
+
+    - name: Write {{ vm_name }} to inventory file
+      blockinfile:
+        path: "{{ playbook_dir }}/../misc/ips.txt"
+        create: yes
+        block: |
+          {{ vm_private_ip }}
+          {{ vm_public_ip }}
+          {{ vm_public_port_80 }}

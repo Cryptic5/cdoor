@@ -4,18 +4,15 @@
   become: yes
 
   vars_files:
-
     - "{{ playbook_dir }}/passwords.yml"
 
   tasks:
-    # Ensure apt lists directory exists
     - name: Ensure apt lists directory exists
       file:
         path: /var/lib/apt/lists
         state: directory
         mode: '0755'
 
-    # Update apt cache to make sure the latest package lists are available
     - name: Update and upgrade apt packages
       apt:
         upgrade: yes

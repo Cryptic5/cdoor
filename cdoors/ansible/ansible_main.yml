@@ -7,8 +7,8 @@
 
 
 
-#- name: Create Web VM
-#  import_playbook: create_web_vm.yml
+- name: Create Web VM
+  import_playbook: create_web_vm.yml
 
 #- name: Setup Web VM
 #  import_playbook: setup_web_machine.yml

@@ -34,19 +34,6 @@
       ansible.builtin.set_fact:
         vm_ip: "{{ vm_result.instances[0].networks[0].ip }}"
 
-
-    #- name: Populate db_config.json
-    #  blockinfile:
-    #    path: "{{ playbook_dir }}/../web/db_config.json"
-    #    create: yes
-    #    block: |
-    #      {
-    #        "host": "{{ vm_ip }}",
-    #        "database": "{{ db_name }}",
-    #        "user": "{{ db_user }}",
-    #        "password": "{{ db_password }}"
-    #      }
-
     - name: Remove old host key
       shell: ssh-keygen -R "{{ vm_ip }}"
       ignore_errors: true
@@ -65,10 +52,6 @@
     - name: Start SSH agent and add key
       shell: |
         eval $(ssh-agent) && ssh-add {{ ssh_key_path }}
-      environment:
-        SSH_AUTH_SOCK: /tmp/ssh-agent.sock
-      args:
-        executable: /bin/bash
 
     - name: Wait for SSH to be reachable
       wait_for:
@@ -83,6 +66,7 @@
     - name: Write {{ vm_name }} to inventory file
       blockinfile:
         path: "{{ playbook_dir }}/hosts"
+        create: yes
         marker: "# {mark} ANSIBLE MANAGED BLOCK {{ vm_name }}"
         block: |
           [db-vm]
@@ -90,3 +74,16 @@
 
     - name: Refresh inventory after adding db-vm
       meta: refresh_inventory
+
+
+    - name: Populate db_config.json
+      blockinfile:
+        path: "{{ playbook_dir }}/../web/db_config.json"
+        create: yes
+        block: |
+          {
+            "host": "{{ vm_ip }}",
+            "database": "{{ db_name }}",
+            "user": "{{ db_user }}",
+            "password": "{{ db_password }}"
+          }

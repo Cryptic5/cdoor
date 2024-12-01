@@ -52,10 +52,6 @@
     - name: Start SSH agent and add key
       shell: |
         eval $(ssh-agent) && ssh-add {{ ssh_key_path }}
-      environment:
-        SSH_AUTH_SOCK: /tmp/ssh-agent.sock
-      args:
-        executable: /bin/bash
 
     - name: Wait for SSH to be reachable
       wait_for:
