@@ -26,15 +26,30 @@
     - "{{ playbook_dir }}/passwords.yml"
 
   tasks:
+    - name: Ensure apt lists directory exists
+      file:
+        path: /var/lib/apt/lists
+        state: directory
+        mode: '0755'
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 86400
+
     - name: Install Docker dependencies
       apt:
-        name: "{{ item }}"
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - python3
+          - python3-pip
         state: present
         force_apt_get: yes
-      loop:
-        - apt-transport-https
-        - ca-certificates
-        - curl
+        update_cache: yes
 
     - name: Install Docker Python library
       pip:

@@ -1,9 +1,9 @@
 ---
-- name: Create Database VM
-  import_playbook: create_db_vm.yml
+#- name: Create Database VM
+#  import_playbook: create_db_vm.yml
 
-- name: Setup Database VM
-  import_playbook: setup_db_machine.yml
+#- name: Setup Database VM
+#  import_playbook: setup_db_machine.yml
 
 
 
@@ -15,8 +15,8 @@
 
 
 
-- name: Create Client VM
-  import_playbook: create_client_vm.yml
+#- name: Create Client VM
+#  import_playbook: create_client_vm.yml
 
-- name: Setup Client VM
-  import_playbook: setup_client_machine.yml
+#- name: Setup Client VM
+#  import_playbook: setup_client_machine.yml
