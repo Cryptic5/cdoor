@@ -73,6 +73,16 @@
         image: "{{ docker_image }}"
         state: started
         ports: "{{ docker_ports }}"
+        volumes:
+          - "/var/www/html:/usr/local/apache2/htdocs"
+
+    - name: Deploy website files
+      copy:
+        src: "{{ playbook_dir }}/../web/{{ item }}"
+        dest: /var/www/html/
+        mode: '0644'
+      loop:
+        - db_config.json
 
     - name: Create or update oneauth file inside the container
       shell: |
