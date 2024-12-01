@@ -1,17 +1,17 @@
 ---
-#- name: Create Database VM
-#  import_playbook: create_db_vm.yml
+- name: Create Database VM
+  import_playbook: create_db_vm.yml
 
-#- name: Setup Database VM
-#  import_playbook: setup_db_machine.yml
+- name: Setup Database VM
+  import_playbook: setup_db_machine.yml
 
 
 
 - name: Create Web VM
   import_playbook: create_web_vm.yml
 
-#- name: Setup Web VM
-#  import_playbook: setup_web_machine.yml
+- name: Setup Web VM
+  import_playbook: setup_web_machine.yml
 
 
 
